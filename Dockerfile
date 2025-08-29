@@ -1,13 +1,8 @@
-# Dockerfile para SSE Server em Go
-
-FROM golang:1.21-alpine AS builder
+# Dockerfile para Socket.io server em Node.js
+FROM node:latest
 WORKDIR /app
+COPY package*.json ./
+RUN npm install --production
 COPY . .
-RUN go build -o sse-server main.go
-
-FROM alpine:latest
-WORKDIR /app
-COPY --from=builder /app/sse-server ./sse-server
 EXPOSE 8080
-ENV AUTH_TOKEN=seu_token_fixo_aqui
-CMD ["./sse-server"]
+CMD ["node", "server.js"]
