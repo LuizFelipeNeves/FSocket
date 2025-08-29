@@ -24,28 +24,30 @@ function authMiddleware(req, res, next) {
   next();
 }
 
-// Endpoint REST para publicar mensagem em canal
+// Endpoint REST para publicar mensagem em channel
 app.use(express.json());
-app.post('/publish/:canal', authMiddleware, (req, res) => {
-  const canal = req.params.canal;
+app.post('/publish', authMiddleware, (req, res) => {
+  const channel = req.body.channel;
   const msg = req.body.msg;
-  if (!canal || !msg) {
-    return res.status(400).json({ error: 'Canal ou mensagem não especificados' });
+  const eventType = req.body.eventType || 'message';
+  if (!channel || !msg) {
+    return res.status(400).json({ error: 'channel or message not specified' });
   }
-  io.to(canal).emit('mensagem', { canal, msg, timestamp: new Date().toISOString() });
+  io.to(channel).emit(eventType, { msg, timestamp: new Date().toISOString() });
   messagesPublished++;
-  return res.json({ status: 'Mensagem publicada' });
+  return res.json({ status: 'Message published' });
 });
 
 // Endpoint REST para broadcast
 app.post('/publish/broadcast', authMiddleware, (req, res) => {
   const msg = req.body.msg;
+  const eventType = req.body.eventType || 'message';
   if (!msg) {
-    return res.status(400).json({ error: 'Mensagem não especificada' });
+    return res.status(400).json({ error: 'Message not specified' });
   }
-  io.emit('mensagem', { canal: 'broadcast', msg, timestamp: new Date().toISOString() });
+  io.emit(eventType, { msg, timestamp: new Date().toISOString() });
   messagesPublished++;
-  return res.json({ status: 'Mensagem publicada para todos os canais' });
+  return res.json({ status: 'Message published to all channels' });
 });
 
 // Endpoint de estatísticas
@@ -63,24 +65,24 @@ app.get('/health', (req, res) => {
 
 // Socket.io conexão e gerenciamento de canais
 io.on('connection', (socket) => {
-  socket.on('join', (canal) => {
-    socket.join(canal);
-    if (!channels[canal]) channels[canal] = [];
-    channels[canal].push(socket.id);
+  socket.on('join', (channel) => {
+    socket.join(channel);
+    if (!channels[channel]) channels[channel] = [];
+    channels[channel].push(socket.id);
   });
 
-  socket.on('leave', (canal) => {
-    socket.leave(canal);
-    if (channels[canal]) {
-      channels[canal] = channels[canal].filter(id => id !== socket.id);
-      if (channels[canal].length === 0) delete channels[canal];
+  socket.on('leave', (channel) => {
+    socket.leave(channel);
+    if (channels[channel]) {
+      channels[channel] = channels[channel].filter(id => id !== socket.id);
+      if (channels[channel].length === 0) delete channels[channel];
     }
   });
 
   socket.on('disconnect', () => {
-    for (const canal in channels) {
-      channels[canal] = channels[canal].filter(id => id !== socket.id);
-      if (channels[canal].length === 0) delete channels[canal];
+    for (const channel in channels) {
+      channels[channel] = channels[channel].filter(id => id !== socket.id);
+      if (channels[channel].length === 0) delete channels[channel];
     }
   });
 });
