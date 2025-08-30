@@ -30,10 +30,11 @@ app.post('/publish', authMiddleware, (req, res) => {
   const channel = req.body.channel;
   const msg = req.body.msg;
   const eventType = req.body.eventType || 'message';
+  const extra = req.body.extra || {};
   if (!channel || !msg) {
     return res.status(400).json({ error: 'channel or message not specified' });
   }
-  io.to(channel).emit(eventType, { msg, timestamp: new Date().toISOString() });
+  io.to(channel).emit(eventType, { msg, timestamp: new Date().toISOString(), ...extra  });
   messagesPublished++;
   return res.json({ status: 'Message published' });
 });
@@ -42,10 +43,11 @@ app.post('/publish', authMiddleware, (req, res) => {
 app.post('/publish/broadcast', authMiddleware, (req, res) => {
   const msg = req.body.msg;
   const eventType = req.body.eventType || 'message';
+  const extra = req.body.extra || {};
   if (!msg) {
     return res.status(400).json({ error: 'Message not specified' });
   }
-  io.emit(eventType, { msg, timestamp: new Date().toISOString() });
+  io.emit(eventType, { msg, timestamp: new Date().toISOString(), ...extra });
   messagesPublished++;
   return res.json({ status: 'Message published to all channels' });
 });
