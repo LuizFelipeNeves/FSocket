@@ -1,98 +1,99 @@
-# Socket.io Multi-channel Server
+# FSocket - Servidor SSE em Go
 
-Este projeto implementa um servidor de eventos em tempo real usando Socket.io e Node.js, com suporte a múltiplos canais, autenticação por token e endpoints REST para publicação de mensagens.
+Servidor de notifications em tempo real usando Server-Sent Events (SSE) e Go.
 
 ## Funcionalidades
 
-- Múltiplos canais (salas) para clientes
+- Server-Sent Events (SSE) para推送 de mensagens em tempo real
+- Múltiplos canais (rooms) para clientes
 - Publicação de mensagens via endpoint REST
 - Broadcast para todos os canais
 - Autenticação por token via variável de ambiente `AUTH_TOKEN`
 - Estatísticas de uso (`/stats`)
 - Health check (`/health`)
-- Suporte a CORS
+- Alta performance com Goroutines
 
 ## Como rodar
 
-### 1. Instale as dependências
+### Build
+
 ```sh
-npm install
+go build -o fsocket ./cmd/server
 ```
 
-### 2. Defina o token de autenticação
+### Executar
 
-No ambiente ou ao rodar o container:
 ```sh
-export AUTH_TOKEN=seu_token
+./fsocket
 ```
 
+Ou com variáveis de ambiente:
 
-# Socket.io Multi-Channel Server
-
-This project implements a real-time event server using Socket.io and Node.js, supporting multiple channels, token authentication, and REST endpoints for message publishing.
-
-## Features
-
-- Multiple channels (rooms) for clients
-- Message publishing via REST endpoint
-- Broadcast to all channels
-- Token authentication via `AUTH_TOKEN` environment variable
-- Usage statistics (`/stats`)
-- Health check (`/health`)
-- CORS support
-
-## How to run
-
-### 1. Install dependencies
 ```sh
-npm install
+PORT=8080 AUTH_TOKEN=seu_token ./fsocket
 ```
 
-### 2. Set the authentication token
+### Docker
 
-In your environment or when running the container:
 ```sh
-export AUTH_TOKEN=your_token
-```
-
-### 3. Start the server
-```sh
-node server.js
-```
-
-### 4. Using Docker
-```sh
-docker build -t socketio-server .
-docker run -p 8080:8080 -e AUTH_TOKEN=your_token socketio-server
+docker build --build-arg AUTH_TOKEN=$AUTH_TOKEN -t fsocket .
+docker run -p 8080:8080 -e AUTH_TOKEN=$AUTH_TOKEN fsocket
 ```
 
 ## Endpoints
 
-- `POST /publish` — Publish a message to a channel (body: `{ channel: "name", msg: "text" }`, header: `Authorization: Bearer <token>`)
-- `POST /publish/broadcast` — Publish a message to all channels
-- `GET /stats` — General statistics
-- `GET /health` — Server status
+- `GET /sse?channel=xxx` — Conexão SSE para um canal
+- `POST /publish` — Publicar mensagem em um canal
+- `POST /publish/broadcast` — Broadcast para todos os canais
+- `GET /stats` — Estatísticas (canais ativos, clientes conectados, mensagens publicadas)
+- `GET /health` — Health check
 
-## Example usage with Socket.io Client
+## Cliente (Frontend)
+
+### Conexão SSE
 
 ```js
-import { io } from "socket.io-client";
-const socket = io("http://localhost:8080");
-socket.emit('join', 'mychannel');
-socket.on('mensagem', (data) => {
-  console.log(data);
-});
+const eventSource = new EventSource('http://localhost:8080/sse?channel=store_123')
+
+eventSource.addEventListener('new_order', (event) => {
+  const data = JSON.parse(event.data)
+  console.log('Novo pedido:', data)
+})
+
+eventSource.addEventListener('order_updated', (event) => {
+  const data = JSON.parse(event.data)
+  console.log('Pedido atualizado:', data)
+})
+
+eventSource.addEventListener('order_edited', (event) => {
+  const data = JSON.parse(event.data)
+  console.log('Pedido editado:', data)
+})
 ```
 
-## Publishing messages
+### Publicar mensagem
 
 ```sh
 curl -X POST http://localhost:8080/publish \
-  -H "Authorization: Bearer your_token" \
+  -H "Authorization: Bearer seu_token" \
   -H "Content-Type: application/json" \
-  -d '{"channel":"mychannel","msg":"Hello"}'
+  -d '{"channel":"store_123","msg":"Novo pedido","eventType":"new_order","extra":{"orderId":"123","orderNumber":456}}'
 ```
 
----
+## Variáveis de Ambiente
 
-For questions or improvements, open an issue or contribute!
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| PORT | 8080 | Porta do servidor |
+| AUTH_TOKEN | - | Token para autenticação nas rotas de publish |
+
+## Arquitetura
+
+```
+cmd/server/main.go       # Entry point
+internal/
+├── config/              # Configurações
+├── hub/                 # Gerenciador de clientes/canais
+├── handler/             # HTTP handlers
+└── middleware/          # Auth middleware
+```
